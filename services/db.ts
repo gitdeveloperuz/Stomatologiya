@@ -1,5 +1,5 @@
 
-import { Treatment, ChatMessage, ChatSession } from '../types';
+import { Treatment, ChatMessage, ChatSession, Category } from '../types';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot, query, orderBy, limit, addDoc, updateDoc, increment, where, writeBatch } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
@@ -50,7 +50,8 @@ export const isCloudConfigured = useCloud;
 // ---------------------------------------------------------------
 const DB_NAME = 'StomatologiyaDB';
 const STORE_NAME = 'treatments';
-const DB_VERSION = 1;
+const CAT_STORE_NAME = 'categories';
+const DB_VERSION = 2; // Incremented for Categories
 
 const initLocalDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
@@ -61,6 +62,9 @@ const initLocalDB = (): Promise<IDBDatabase> => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(CAT_STORE_NAME)) {
+        db.createObjectStore(CAT_STORE_NAME, { keyPath: 'id' });
       }
     };
   });
@@ -111,6 +115,34 @@ export const subscribeToTreatments = (
 };
 
 // ---------------------------------------------------------------
+// REAL-TIME DATA SUBSCRIPTION (CATEGORIES)
+// ---------------------------------------------------------------
+
+export const subscribeToCategories = (
+    onUpdate: (data: Category[]) => void
+): () => void => {
+    // CLOUD
+    if (useCloud && db) {
+        const unsubscribe = onSnapshot(collection(db, "categories"), (snapshot: any) => {
+            const items: Category[] = [];
+            snapshot.forEach((doc: any) => items.push(doc.data() as Category));
+            onUpdate(items);
+        });
+        return unsubscribe;
+    }
+
+    // LOCAL
+    getAllCategories().then(onUpdate);
+    const channel = new BroadcastChannel('stomatologiya_updates');
+    channel.onmessage = (event) => {
+        if (event.data === 'cat_update') {
+            getAllCategories().then(onUpdate);
+        }
+    };
+    return () => channel.close();
+};
+
+// ---------------------------------------------------------------
 // CHAT OPERATIONS (CLOUD ONLY)
 // ---------------------------------------------------------------
 
@@ -134,13 +166,12 @@ export const sendMessage = async (sessionId: string, text: string, sender: 'user
         const sessionRef = doc(db, 'chats', sessionId);
         
         // Calculate unread count logic
-        // If sender is user, admin has +1 unread. If sender is admin, user has +1 unread (simplified here to just tracking session activity)
         await setDoc(sessionRef, {
             id: sessionId,
             lastMessage: text,
             lastMessageTime: Date.now(),
-            unreadCount: sender === 'user' ? increment(1) : 0, // Reset if admin replies, increment if user sends
-            userName: sender === 'user' ? `Mijoz (ID: ${sessionId.slice(0, 4)})` : undefined // Simple naming
+            unreadCount: sender === 'user' ? increment(1) : 0, 
+            userName: sender === 'user' ? `Mijoz (ID: ${sessionId.slice(0, 4)})` : undefined
         }, { merge: true });
 
     } catch (e) {
@@ -167,13 +198,11 @@ export const deleteMessage = async (sessionId: string, messageId: string) => {
 export const deleteChatSession = async (sessionId: string) => {
     if (!useCloud || !db) return;
     try {
-        // 1. Delete all messages in subcollection (Client SDK doesn't support recursive delete of subcollections automatically)
         const msgsRef = collection(db, 'chats', sessionId, 'messages');
         const snapshot = await getDocs(msgsRef);
         const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
         await Promise.all(deletePromises);
         
-        // 2. Delete the session document
         await deleteDoc(doc(db, 'chats', sessionId));
     } catch (e) {
         console.error("Session Delete Error:", e);
@@ -214,23 +243,16 @@ export const subscribeToAllSessions = (onUpdate: (sessions: ChatSession[]) => vo
 
 export const markSessionRead = async (sessionId: string) => {
     if (!useCloud || !db) return;
-    
     try {
         const sessionRef = doc(db, 'chats', sessionId);
         const batch = writeBatch(db);
-
-        // 1. Reset unread count on session
         batch.update(sessionRef, { unreadCount: 0 });
-
-        // 2. Mark all unread messages from user as read
         const messagesRef = collection(db, 'chats', sessionId, 'messages');
         const q = query(messagesRef, where("read", "==", false), where("sender", "==", "user"));
         const snapshot = await getDocs(q);
-        
         snapshot.forEach(doc => {
             batch.update(doc.ref, { read: true });
         });
-
         await batch.commit();
     } catch (e) {
         console.error("Error marking read:", e);
@@ -238,7 +260,7 @@ export const markSessionRead = async (sessionId: string) => {
 };
 
 // ---------------------------------------------------------------
-// CRUD OPERATIONS (TREATMENTS)
+// CRUD OPERATIONS (TREATMENTS & CATEGORIES)
 // ---------------------------------------------------------------
 
 export const initDB = async (): Promise<void> => {
@@ -266,14 +288,27 @@ const getAllTreatments = (): Promise<Treatment[]> => {
     });
 };
 
+const getAllCategories = (): Promise<Category[]> => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = () => {
+            const dbLocal = request.result;
+            try {
+                const transaction = dbLocal.transaction(CAT_STORE_NAME, 'readonly');
+                const store = transaction.objectStore(CAT_STORE_NAME);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result || []);
+            } catch(e) { resolve([]); }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 export const saveTreatment = async (treatment: Treatment): Promise<void> => {
-  // CLOUD
   if (useCloud && db) {
       await setDoc(doc(db, "treatments", treatment.id), treatment);
       return;
   }
-
-  // LOCAL
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => {
@@ -282,7 +317,6 @@ export const saveTreatment = async (treatment: Treatment): Promise<void> => {
       const store = transaction.objectStore(STORE_NAME);
       const putRequest = store.put(treatment);
       putRequest.onsuccess = () => {
-          // Notify other tabs
           const channel = new BroadcastChannel('stomatologiya_updates');
           channel.postMessage('db_update');
           channel.close();
@@ -295,13 +329,10 @@ export const saveTreatment = async (treatment: Treatment): Promise<void> => {
 };
 
 export const deleteTreatment = async (id: string): Promise<void> => {
-   // CLOUD
    if (useCloud && db) {
        await deleteDoc(doc(db, "treatments", id));
        return;
    }
-
-   // LOCAL
    return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => {
@@ -310,7 +341,6 @@ export const deleteTreatment = async (id: string): Promise<void> => {
       const store = transaction.objectStore(STORE_NAME);
       const deleteRequest = store.delete(id);
       deleteRequest.onsuccess = () => {
-           // Notify other tabs
            const channel = new BroadcastChannel('stomatologiya_updates');
            channel.postMessage('db_update');
            channel.close();
@@ -320,4 +350,48 @@ export const deleteTreatment = async (id: string): Promise<void> => {
     };
     request.onerror = () => reject(request.error);
   });
+};
+
+export const saveCategory = async (category: Category): Promise<void> => {
+    if (useCloud && db) {
+        await setDoc(doc(db, "categories", category.id), category);
+        return;
+    }
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = () => {
+            const dbLocal = request.result;
+            const tx = dbLocal.transaction(CAT_STORE_NAME, 'readwrite');
+            tx.objectStore(CAT_STORE_NAME).put(category);
+            tx.oncomplete = () => {
+                const channel = new BroadcastChannel('stomatologiya_updates');
+                channel.postMessage('cat_update');
+                channel.close();
+                resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+        };
+    });
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+    if (useCloud && db) {
+        await deleteDoc(doc(db, "categories", id));
+        return;
+    }
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = () => {
+            const dbLocal = request.result;
+            const tx = dbLocal.transaction(CAT_STORE_NAME, 'readwrite');
+            tx.objectStore(CAT_STORE_NAME).delete(id);
+            tx.oncomplete = () => {
+                const channel = new BroadcastChannel('stomatologiya_updates');
+                channel.postMessage('cat_update');
+                channel.close();
+                resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+        };
+    });
 };

@@ -1,18 +1,21 @@
 
 import React, { useState } from 'react';
-import { Plus, Check, ListPlus, Image as ImageIcon, Sparkles } from 'lucide-react';
-import { Treatment } from '../types';
+import { Plus, Check, ListPlus, Image as ImageIcon, Sparkles, DollarSign, Tag } from 'lucide-react';
+import { Treatment, Category } from '../types';
 import { CURRENCY_FORMATTER } from '../constants';
 
 interface ProductEntryProps {
   image: string;
+  categories: Category[];
   onSave: (data: Omit<Treatment, 'id'> & { imageUrl: string }) => void;
 }
 
-export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => {
+export const ProductEntry: React.FC<ProductEntryProps> = ({ image, categories, onSave }) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState<string>('');
+  const [currency, setCurrency] = useState<'UZS' | 'USD'>('UZS');
   const [description, setDescription] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [added, setAdded] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,6 +25,8 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
     onSave({
       name,
       price: Number(price),
+      currency,
+      category: categoryId,
       description,
       recommended: false,
       imageUrl: image
@@ -31,6 +36,8 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
     // Reset form after adding
     setName('');
     setPrice('');
+    setCurrency('UZS');
+    setCategoryId('');
     setDescription('');
     
     setTimeout(() => {
@@ -86,20 +93,54 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
-                        Narxi (so'm)
-                    </label>
-                    <div className="relative">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
+                          Narxi
+                      </label>
                       <input 
                           type="number" 
                           required
                           value={price}
                           onChange={(e) => setPrice(e.target.value)}
                           placeholder="0"
-                          className="w-full pl-5 pr-16 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-mono font-bold text-lg text-slate-900 dark:text-white placeholder:text-slate-400"
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-mono font-bold text-lg text-slate-900 dark:text-white placeholder:text-slate-400"
                       />
-                      <span className="absolute right-5 top-4.5 text-slate-400 font-medium">UZS</span>
+                  </div>
+                  <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
+                          Valyuta
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value as 'UZS' | 'USD')}
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
+                        >
+                          <option value="UZS">So'm (UZS)</option>
+                          <option value="USD">Dollar (USD)</option>
+                        </select>
+                        <DollarSign className="absolute right-5 top-4.5 h-5 w-5 text-slate-400 pointer-events-none" />
+                      </div>
+                  </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
+                        Kategoriya <span className="text-slate-400 font-normal text-xs">(ixtiyoriy)</span>
+                    </label>
+                    <div className="relative">
+                        <select
+                            value={categoryId}
+                            onChange={(e) => setCategoryId(e.target.value)}
+                            className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all text-slate-900 dark:text-white appearance-none"
+                        >
+                            <option value="">Kategoriyasiz</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                            ))}
+                        </select>
+                        <Tag className="absolute right-5 top-4.5 h-5 w-5 text-slate-400 pointer-events-none" />
                     </div>
                 </div>
 

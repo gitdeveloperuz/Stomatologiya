@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, CalendarCheck, ChevronLeft, User, Phone, MapPin, MessageSquare, CreditCard, Truck, Store, CheckCircle, Send, Loader2, Banknote, Wallet } from 'lucide-react';
+import { X, Trash2, CalendarCheck, ChevronLeft, User, Phone, MapPin, MessageSquare, CreditCard, Truck, Store, CheckCircle, Loader2, Banknote, Wallet, ShoppingBag } from 'lucide-react';
 import { CartItem } from '../types';
-import { CURRENCY_FORMATTER, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_ID } from '../constants';
+import { CURRENCY_FORMATTER, USD_FORMATTER, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_ID, formatPrice } from '../constants';
 import * as XLSX from 'xlsx';
 
 interface CartDrawerProps {
@@ -32,7 +32,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
-  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  // Calculate totals by currency
+  const totalUZS = items.reduce((sum, item) => {
+      if (item.currency === 'USD') return sum;
+      return sum + (item.price * item.quantity);
+  }, 0);
+
+  const totalUSD = items.reduce((sum, item) => {
+      if (item.currency === 'USD') return sum + (item.price * item.quantity);
+      return sum;
+  }, 0);
+
+  const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const getFormattedTotal = () => {
+      const parts = [];
+      if (totalUZS > 0) parts.push(CURRENCY_FORMATTER.format(totalUZS));
+      if (totalUSD > 0) parts.push(USD_FORMATTER.format(totalUSD));
+      return parts.length > 0 ? parts.join(' + ') : CURRENCY_FORMATTER.format(0);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -110,7 +128,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
       ["Izoh:", formData.comment || "Yo'q"],
       [""],
       ["TANLANGAN XIZMATLAR VA MAHSULOTLAR"],
-      ["№", "Nomi", "Turi", "Soni", "Narxi (dona)", "Jami (UZS)"], // Table Headers
+      ["№", "Nomi", "Turi", "Soni", "Narxi (dona)", "Jami", "Valyuta"], // Table Headers
     ];
 
     // Add Items
@@ -121,13 +139,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
         item.recommended ? "AI Tavsiya" : "Standard",
         item.quantity.toString(),
         item.price.toString(),
-        (item.price * item.quantity).toString()
+        (item.price * item.quantity).toString(),
+        item.currency || 'UZS'
       ]);
     });
 
     // Add Footer / Total
     wsData.push([""]);
-    wsData.push(["", "", "", "", "JAMI SUMMA:", total.toString()]);
+    if (totalUZS > 0) wsData.push(["", "", "", "", "JAMI (UZS):", totalUZS.toString()]);
+    if (totalUSD > 0) wsData.push(["", "", "", "", "JAMI (USD):", totalUSD.toString()]);
+    if (totalUZS === 0 && totalUSD === 0) wsData.push(["", "", "", "", "JAMI:", "0"]);
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
@@ -138,7 +159,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
       { wch: 15 }, // Type
       { wch: 10 }, // Quantity
       { wch: 15 }, // Price
-      { wch: 20 }  // Total
+      { wch: 20 }, // Total
+      { wch: 10 }  // Currency
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Buyurtma");
@@ -178,7 +200,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
     const formDataUpload = new FormData();
     formDataUpload.append('chat_id', TELEGRAM_ADMIN_ID); // Sending to Admin ID
     formDataUpload.append('document', blob, fileName);
-    formDataUpload.append('caption', `🦷 *Yangi Buyurtma*\n\n👤 ${formData.firstName} ${formData.lastName}\n📞 ${formData.phone}\n\n🚚 *${deliveryText}*\n💳 *${paymentText}*\n\n💰 Jami: ${CURRENCY_FORMATTER.format(total)}\n${formData.deliveryMethod === 'delivery' ? `📍 ${formData.address}` : ''}`);
+    formDataUpload.append('caption', `🦷 *Yangi Buyurtma*\n\n👤 ${formData.firstName} ${formData.lastName}\n📞 ${formData.phone}\n\n🚚 *${deliveryText}*\n💳 *${paymentText}*\n\n💰 Jami: ${getFormattedTotal()}\n${formData.deliveryMethod === 'delivery' ? `📍 ${formData.address}` : ''}`);
     formDataUpload.append('parse_mode', 'Markdown');
 
     try {
@@ -303,11 +325,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
                            </h3>
                            <div className="text-right">
                              <span className="font-bold text-primary whitespace-nowrap block">
-                               {CURRENCY_FORMATTER.format(item.price * item.quantity)}
+                               {formatPrice(item.price * item.quantity, item.currency)}
                              </span>
                              {item.quantity > 1 && (
                                <span className="text-[10px] text-slate-400">
-                                 {CURRENCY_FORMATTER.format(item.price)} dan
+                                 {formatPrice(item.price, item.currency)} dan
                                </span>
                              )}
                            </div>
@@ -537,15 +559,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
                       Buyurtmangiz menejerga yuborildi. Tez orada siz bilan bog'lanamiz.
                     </p>
                   </div>
-                  
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 p-5 rounded-2xl flex items-center gap-4 text-left w-full shadow-sm">
-                    <div className="bg-blue-100 dark:bg-blue-900/40 p-3 rounded-full">
-                      <Send className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-base font-bold text-slate-900 dark:text-white">Telegramga Yuborildi</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">Buyurtma fayli tayyorlandi.</p>
-                    </div>
+
+                  {/* Order Summary */}
+                  <div className="w-full bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800 mt-4 text-left">
+                     <div className="flex items-center gap-2 mb-4">
+                        <ShoppingBag className="h-4 w-4 text-primary" />
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Buyurtma tarkibi</h4>
+                     </div>
+                     <div className="space-y-3 max-h-48 overflow-y-auto pr-1 custom-scrollbar mb-4">
+                        {items.map((item) => (
+                           <div key={item.cartId} className="flex items-center justify-between text-sm group">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                 <div className="flex-shrink-0 w-8 h-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-100 dark:border-slate-700 font-bold text-xs text-slate-500">
+                                    x{item.quantity}
+                                 </div>
+                                 <span className="font-medium text-slate-700 dark:text-slate-200 truncate group-hover:text-primary transition-colors">{item.name}</span>
+                              </div>
+                              <span className="font-bold text-slate-900 dark:text-white pl-2 whitespace-nowrap">
+                                 {formatPrice(item.price * item.quantity, item.currency)}
+                              </span>
+                           </div>
+                        ))}
+                     </div>
+                     <div className="border-t border-slate-200 dark:border-slate-700 pt-3 flex justify-between items-center">
+                        <span className="font-bold text-slate-500 dark:text-slate-400 text-sm">Jami</span>
+                        <span className="font-black text-lg text-primary">{getFormattedTotal()}</span>
+                     </div>
                   </div>
                 </div>
               )}
@@ -557,15 +596,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
             <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)] z-20">
               <div className="flex justify-between items-end mb-4">
                 <p className="text-slate-400 font-medium text-sm uppercase tracking-wide">Jami summa:</p>
-                <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{CURRENCY_FORMATTER.format(total)}</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{getFormattedTotal()}</p>
               </div>
               
               {step === 'cart' ? (
                 <button
                   onClick={() => setStep('checkout')}
-                  className="w-full flex items-center justify-center rounded-xl bg-slate-900 dark:bg-white px-6 py-4 text-lg font-bold text-white dark:text-slate-900 shadow-lg shadow-slate-900/30 hover:bg-slate-800 dark:hover:bg-slate-200 active:scale-[0.98] transition-all"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 dark:bg-white px-6 py-4 text-lg font-bold text-white dark:text-slate-900 shadow-lg shadow-slate-900/30 hover:bg-slate-800 dark:hover:bg-slate-200 active:scale-[0.98] transition-all"
                 >
-                  Buyurtma berish
+                  Buyurtma berish 
+                  <span className="ml-1 bg-white/20 dark:bg-black/10 px-2.5 py-0.5 rounded-lg text-sm">
+                    {totalQty}
+                  </span>
                 </button>
               ) : (
                 <button

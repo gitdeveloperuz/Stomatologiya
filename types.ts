@@ -3,9 +3,16 @@ export interface Treatment {
   id: string;
   name: string;
   description: string;
-  price: number; // In UZS
+  price: number; // In UZS or USD
+  currency?: 'UZS' | 'USD';
+  category?: string; // Category ID or Name
   recommended: boolean;
   imageUrl?: string; // Optional base64 string for custom uploaded images
+}
+
+export interface Category {
+  id: string;
+  name: string;
 }
 
 export interface CartItem extends Treatment {

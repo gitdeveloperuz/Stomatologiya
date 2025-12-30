@@ -76,13 +76,13 @@ export const ChatWidget: React.FC = () => {
   if (!isCloudConfigured) return null; // Don't show chat if no DB
 
   return (
-    <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end pointer-events-none">
+    <div className={`fixed z-[60] flex flex-col items-end pointer-events-none ${isOpen ? 'inset-0 lg:inset-auto lg:bottom-6 lg:right-6' : 'bottom-6 right-6'}`}>
       
       {/* Chat Window */}
       {isOpen && (
-        <div className="pointer-events-auto w-full max-w-[350px] sm:w-[350px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-4 overflow-hidden animate-slide-up origin-bottom-right transition-colors duration-300">
+        <div className="pointer-events-auto w-full h-full lg:h-auto lg:max-h-[600px] lg:w-[450px] bg-white dark:bg-slate-900 lg:rounded-2xl shadow-2xl border-0 lg:border border-slate-100 dark:border-slate-800 lg:mb-4 overflow-hidden animate-slide-up origin-bottom-right transition-colors duration-300 flex flex-col">
           {/* Header */}
-          <div className="bg-primary p-4 flex items-center justify-between text-white">
+          <div className="bg-primary p-4 flex items-center justify-between text-white shrink-0">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-full">
                 <ShieldCheck className="h-5 w-5" />
@@ -96,13 +96,19 @@ export const ChatWidget: React.FC = () => {
               <X className="h-5 w-5" />
             </button>
           </div>
+          
+          {/* Hint Banner */}
+          <div className="bg-sky-50 dark:bg-sky-900/20 p-2 text-center border-b border-sky-100 dark:border-sky-800 shrink-0">
+             <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+               Admin tez orada javob beradi
+             </p>
+          </div>
 
           {/* Messages */}
-          <div className="h-[350px] overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950 space-y-3">
+          <div className="flex-1 lg:min-h-[300px] overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950 space-y-3">
             {messages.length === 0 && (
                 <div className="text-center text-slate-400 text-sm mt-10">
                     <p>Savolingizni yozib qoldiring.</p>
-                    <p className="text-xs mt-2">Tez orada javob beramiz.</p>
                 </div>
             )}
             {messages.map((msg) => (
@@ -128,13 +134,13 @@ export const ChatWidget: React.FC = () => {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+          <form onSubmit={handleSend} className="p-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-2 shrink-0">
             <input 
                 type="text" 
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Xabar yozing..."
-                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                placeholder="Xabar yozing... (Admin tez orada javob beradi)"
+                className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
             <button 
                 type="submit"
@@ -150,7 +156,7 @@ export const ChatWidget: React.FC = () => {
       {/* Toggle Button */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="pointer-events-auto h-14 w-14 bg-primary hover:bg-sky-600 text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+        className={`pointer-events-auto h-14 w-14 bg-primary hover:bg-sky-600 text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95 ${isOpen ? 'hidden lg:flex' : 'flex'}`}
       >
         {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
