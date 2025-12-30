@@ -15,10 +15,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        const base64Data = base64String.split(',')[1];
-        onImageSelected(base64Data);
+      reader.onload = (event) => {
+        // Compress Image
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // Resize logic: Max width 800px to ensure base64 string fits in DB
+            const MAX_WIDTH = 800;
+            if (width > MAX_WIDTH) {
+                height = (height * MAX_WIDTH) / width;
+                width = MAX_WIDTH;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            
+            // Compress to JPEG 60% quality
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            
+            // Remove data:image/jpeg;base64, prefix
+            const base64Data = compressedBase64.split(',')[1];
+            onImageSelected(base64Data);
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
