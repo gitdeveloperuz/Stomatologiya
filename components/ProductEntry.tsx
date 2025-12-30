@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Plus, Check, ListPlus, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Treatment } from '../types';
@@ -40,9 +41,9 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
   const mimeType = image.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex flex-col md:flex-row animate-fade-in ring-1 ring-slate-900/5">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200/50 dark:shadow-black/30 border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col md:flex-row animate-fade-in ring-1 ring-slate-900/5 transition-colors">
         {/* Image Side */}
-        <div className="md:w-5/12 bg-slate-100 relative min-h-[300px] md:min-h-full group overflow-hidden">
+        <div className="md:w-5/12 bg-slate-100 dark:bg-slate-800 relative min-h-[300px] md:min-h-full group overflow-hidden">
             <img 
                 src={`data:${mimeType};base64,${image}`} 
                 alt="Yuklangan" 
@@ -62,8 +63,8 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
         {/* Form Side */}
         <div className="flex-1 p-6 sm:p-8 lg:p-10">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <span className="bg-primary/10 p-2 rounded-xl text-primary">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="bg-primary/10 dark:bg-primary/20 p-2 rounded-xl text-primary">
                   <Sparkles className="h-6 w-6" />
                 </span>
                 Mahsulot Yaratish
@@ -72,7 +73,7 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
             
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
                         Mahsulot Nomi
                     </label>
                     <input 
@@ -81,12 +82,12 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="Masalan: Tish oqartirish Premium"
-                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-semibold text-slate-900 placeholder:text-slate-400"
+                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-semibold text-slate-900 dark:text-white placeholder:text-slate-400"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
                         Narxi (so'm)
                     </label>
                     <div className="relative">
@@ -96,14 +97,14 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                           value={price}
                           onChange={(e) => setPrice(e.target.value)}
                           placeholder="0"
-                          className="w-full pl-5 pr-16 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-mono font-bold text-lg text-slate-900 placeholder:text-slate-400"
+                          className="w-full pl-5 pr-16 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all font-mono font-bold text-lg text-slate-900 dark:text-white placeholder:text-slate-400"
                       />
                       <span className="absolute right-5 top-4.5 text-slate-400 font-medium">UZS</span>
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 ml-1">
                         Tavsif <span className="text-slate-400 font-normal text-xs">(ixtiyoriy)</span>
                     </label>
                     <textarea 
@@ -111,7 +112,7 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Mijozlar uchun qisqacha ma'lumot..."
-                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all resize-none text-slate-600"
+                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-primary/10 focus:border-primary focus:outline-none transition-all resize-none text-slate-600 dark:text-slate-300"
                     />
                 </div>
 
@@ -122,7 +123,7 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                         className={`w-full flex items-center justify-center gap-2 py-4.5 rounded-2xl font-bold text-lg transition-all transform active:scale-[0.99] ${
                             added 
                             ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/25 ring-2 ring-emerald-500 ring-offset-2' 
-                            : 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 hover:bg-slate-800 ring-2 ring-transparent ring-offset-2 hover:ring-slate-900'
+                            : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-900/20 hover:bg-slate-800 dark:hover:bg-slate-100 ring-2 ring-transparent ring-offset-2 hover:ring-slate-900 dark:hover:ring-slate-100'
                         }`}
                     >
                         {added ? (

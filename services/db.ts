@@ -1,7 +1,7 @@
 
 import { Treatment, ChatMessage, ChatSession } from '../types';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot, query, orderBy, limit, addDoc, updateDoc, increment } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot, query, orderBy, limit, addDoc, updateDoc, increment, where, writeBatch } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // ---------------------------------------------------------------
@@ -148,6 +148,38 @@ export const sendMessage = async (sessionId: string, text: string, sender: 'user
     }
 };
 
+export const deleteMessage = async (sessionId: string, messageId: string) => {
+    if (!useCloud || !db) return;
+    try {
+        const messagesRef = collection(db, 'chats', sessionId, 'messages');
+        const snapshot = await getDocs(messagesRef);
+        snapshot.forEach(async (d) => {
+            if (d.data().id === messageId) {
+                await deleteDoc(d.ref);
+            }
+        });
+
+    } catch (e) {
+        console.error("Chat Delete Error:", e);
+    }
+};
+
+export const deleteChatSession = async (sessionId: string) => {
+    if (!useCloud || !db) return;
+    try {
+        // 1. Delete all messages in subcollection (Client SDK doesn't support recursive delete of subcollections automatically)
+        const msgsRef = collection(db, 'chats', sessionId, 'messages');
+        const snapshot = await getDocs(msgsRef);
+        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        
+        // 2. Delete the session document
+        await deleteDoc(doc(db, 'chats', sessionId));
+    } catch (e) {
+        console.error("Session Delete Error:", e);
+    }
+};
+
 export const subscribeToChatMessages = (sessionId: string, onUpdate: (msgs: ChatMessage[]) => void) => {
     if (!useCloud || !db) return () => {};
 
@@ -182,8 +214,27 @@ export const subscribeToAllSessions = (onUpdate: (sessions: ChatSession[]) => vo
 
 export const markSessionRead = async (sessionId: string) => {
     if (!useCloud || !db) return;
-    const sessionRef = doc(db, 'chats', sessionId);
-    await updateDoc(sessionRef, { unreadCount: 0 });
+    
+    try {
+        const sessionRef = doc(db, 'chats', sessionId);
+        const batch = writeBatch(db);
+
+        // 1. Reset unread count on session
+        batch.update(sessionRef, { unreadCount: 0 });
+
+        // 2. Mark all unread messages from user as read
+        const messagesRef = collection(db, 'chats', sessionId, 'messages');
+        const q = query(messagesRef, where("read", "==", false), where("sender", "==", "user"));
+        const snapshot = await getDocs(q);
+        
+        snapshot.forEach(doc => {
+            batch.update(doc.ref, { read: true });
+        });
+
+        await batch.commit();
+    } catch (e) {
+        console.error("Error marking read:", e);
+    }
 };
 
 // ---------------------------------------------------------------

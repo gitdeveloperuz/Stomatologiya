@@ -31,8 +31,20 @@ const App: React.FC = () => {
   // Delete Confirmation State
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Initialize DB and Real-time Subscription
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   useEffect(() => {
+    // Theme Init
+    const stored = localStorage.getItem('stomatologiya_theme');
+    if (stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        setIsDarkMode(true);
+        document.documentElement.classList.add('dark');
+    } else {
+        setIsDarkMode(false);
+        document.documentElement.classList.remove('dark');
+    }
+
     // 1. Init DB (create object store if local)
     initDB();
 
@@ -69,6 +81,18 @@ const App: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const toggleTheme = () => {
+      const newMode = !isDarkMode;
+      setIsDarkMode(newMode);
+      if (newMode) {
+          document.documentElement.classList.add('dark');
+          localStorage.setItem('stomatologiya_theme', 'dark');
+      } else {
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('stomatologiya_theme', 'light');
+      }
+  };
 
   const handleAdminLogin = (password: string) => {
     if (password === 'admin123') { // Simple hardcoded password
@@ -162,7 +186,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-24">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 pb-24 transition-colors duration-300">
       <Navbar 
         cartCount={cartItems.reduce((acc, item) => acc + item.quantity, 0)} 
         onCartClick={() => setIsCartOpen(true)} 
@@ -172,13 +196,15 @@ const App: React.FC = () => {
           setIsAdmin(false);
           setUploadedImage(null);
         }}
+        isDarkMode={isDarkMode}
+        onToggleTheme={toggleTheme}
       />
 
       {/* CLOUD STATUS & ERROR WARNINGS FOR ADMIN */}
       {isAdmin && (
         <div className="relative z-50">
           {!isCloudConfigured && (
-            <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-amber-900 text-sm font-medium text-center">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3 text-amber-900 dark:text-amber-100 text-sm font-medium text-center">
               <div className="flex items-center justify-center gap-2">
                   <CloudOff className="h-4 w-4" />
                   <span>
@@ -190,14 +216,14 @@ const App: React.FC = () => {
           )}
           
           {isCloudConfigured && dbError === 'PERMISSION_DENIED' && (
-             <div className="bg-red-50 border-b border-red-200 px-4 py-4 text-red-900 text-sm font-medium text-center animate-pulse">
+             <div className="bg-red-50 dark:bg-red-900/30 border-b border-red-200 dark:border-red-800 px-4 py-4 text-red-900 dark:text-red-100 text-sm font-medium text-center animate-pulse">
                 <div className="flex flex-col items-center justify-center gap-2">
-                    <div className="flex items-center gap-2 font-bold text-red-600 text-base">
+                    <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400 text-base">
                         <AlertTriangle className="h-5 w-5" />
                         <span>XATOLIK: Baza Yozishdan Himoyalangan (Production Mode)</span>
                     </div>
                     <p>Firebase Console &gt; Firestore &gt; <strong>Rules</strong> bo'limiga kiring va quyidagini yozing:</p>
-                    <code className="bg-white px-3 py-1.5 rounded border border-red-200 text-red-700 font-mono mt-1 text-xs select-all">
+                    <code className="bg-white dark:bg-slate-800 px-3 py-1.5 rounded border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 font-mono mt-1 text-xs select-all">
                       allow read, write: if true;
                     </code>
                 </div>
@@ -205,7 +231,7 @@ const App: React.FC = () => {
           )}
 
           {isCloudConfigured && !dbError && (
-              <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-emerald-800 text-xs font-bold text-center">
+              <div className="bg-emerald-50 dark:bg-emerald-900/30 border-b border-emerald-200 dark:border-emerald-800 px-4 py-2 text-emerald-800 dark:text-emerald-100 text-xs font-bold text-center">
                 <div className="flex items-center justify-center gap-2">
                     <Cloud className="h-3 w-3" />
                     <span>ONLINE: Barcha o'zgarishlar mijozlarda avtomatik yangilanadi.</span>
@@ -217,17 +243,17 @@ const App: React.FC = () => {
 
       {/* ADMIN NAVIGATION TABS */}
       {isAdmin && (
-          <div className="bg-white border-b border-slate-200 sticky top-16 z-40 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-16 z-40 shadow-sm transition-colors">
               <div className="max-w-7xl mx-auto px-4 flex gap-6 overflow-x-auto">
                   <button 
                     onClick={() => setAdminTab('products')}
-                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'products' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'products' ? 'border-primary text-primary' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
                       <LayoutGrid className="h-4 w-4" /> Mahsulotlar
                   </button>
                   <button 
                     onClick={() => setAdminTab('chat')}
-                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
                   >
                       <MessageSquare className="h-4 w-4" /> Xabarlar
                   </button>
@@ -265,16 +291,16 @@ const App: React.FC = () => {
                 <div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                     <div className="flex items-center gap-3">
-                    <div className="p-3 bg-white border border-slate-100 shadow-sm rounded-2xl text-slate-700">
+                    <div className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-sm rounded-2xl text-slate-700 dark:text-slate-200">
                         <Stethoscope className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-900">Mahsulotlar</h2>
-                        <p className="text-slate-500 text-sm">Barcha mahsulotlarimiz</p>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Mahsulotlar</h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">Barcha mahsulotlarimiz</p>
                     </div>
                     </div>
                     {!isAdmin && services.length > 0 && (
-                        <div className="hidden sm:block text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                        <div className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-800">
                             Barcha mahsulotlar litsenziyalangan
                         </div>
                     )}
@@ -284,21 +310,21 @@ const App: React.FC = () => {
                     {isLoadingServices ? (
                         <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                            <p className="text-slate-500">Yuklanmoqda...</p>
+                            <p className="text-slate-500 dark:text-slate-400">Yuklanmoqda...</p>
                         </div>
                     ) : services.length === 0 ? (
-                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
-                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-[2rem] border border-dashed border-slate-200 dark:border-slate-800">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
                             {dbError === 'PERMISSION_DENIED' ? (
                                 <CloudOff className="h-8 w-8 text-red-300" />
                             ) : (
-                                <Stethoscope className="h-8 w-8 text-slate-300" />
+                                <Stethoscope className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                             )}
                             </div>
                             {dbError === 'PERMISSION_DENIED' ? (
                             <p className="text-lg font-medium text-red-500">Baza ruxsatlari sozlanmagan.</p>
                             ) : (
-                            <p className="text-lg font-medium text-slate-600">Hozircha mahsulotlar mavjud emas.</p>
+                            <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Hozircha mahsulotlar mavjud emas.</p>
                             )}
                             {isAdmin && !dbError && <p className="text-sm mt-2 text-primary bg-primary/5 px-4 py-2 rounded-full">Yuqoridagi rasm yuklash tugmasi orqali mahsulot qo'shing.</p>}
                         </div>

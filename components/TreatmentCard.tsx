@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Plus, Check, Edit2, Save, X, ShoppingCart, Trash2, Minus } from 'lucide-react';
 import { Treatment } from '../types';
@@ -90,12 +91,12 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
   const mimeType = treatment.imageUrl?.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
 
   return (
-    <div className="group flex flex-col bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden h-full relative isolate">
+    <div className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-primary/5 dark:hover:shadow-black/40 transition-all duration-300 overflow-hidden h-full relative isolate">
       
       {/* Badge */}
       {treatment.recommended && (
         <div className="absolute top-4 left-4 z-20 pointer-events-none">
-          <div className="bg-white/90 backdrop-blur-md text-emerald-600 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg border border-emerald-100 flex items-center gap-1">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg border border-emerald-100 dark:border-emerald-900 flex items-center gap-1">
              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
              AI TAVSIYASI
           </div>
@@ -103,7 +104,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
       )}
 
       {/* Image Area */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
         {treatment.imageUrl ? (
             <img 
                 src={`data:${mimeType};base64,${treatment.imageUrl}`} 
@@ -111,7 +112,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
         ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
+            <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-600">
                <span className="text-4xl font-light">🦷</span>
             </div>
         )}
@@ -127,28 +128,28 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
                 type="text" 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full p-2 border border-slate-200 rounded-lg text-lg font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-lg font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 placeholder="Nomi"
               />
               <textarea 
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full p-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none"
+                className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none resize-none"
                 placeholder="Tavsif"
               />
               <input 
                 type="number" 
                 value={price}
                 onChange={(e) => setPrice(Number(e.target.value))}
-                className="w-full p-2 border border-slate-200 rounded-lg font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                 placeholder="Narx"
               />
             </div>
           ) : (
             <>
-              <h3 className="text-xl font-bold text-slate-900 mb-2 line-clamp-2">{name}</h3>
-              <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-4">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 line-clamp-2">{name}</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-3 mb-4">
                 {description}
               </p>
             </>
@@ -156,10 +157,10 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
         </div>
         
         {/* Footer Area */}
-        <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between gap-4">
+        <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between gap-4">
           <div className="flex flex-col">
-            <span className="text-xs text-slate-400 font-medium">Narxi</span>
-            <span className="text-xl font-bold text-slate-900">
+            <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Narxi</span>
+            <span className="text-xl font-bold text-slate-900 dark:text-white">
               {CURRENCY_FORMATTER.format(price)}
             </span>
           </div>
@@ -167,17 +168,17 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
           {!isEditing && (
             <div className="h-[46px] flex items-center">
               {isSelectingQuantity ? (
-                  <div className="flex items-center gap-2 bg-slate-900 rounded-2xl p-1 shadow-lg animate-fade-in">
+                  <div className="flex items-center gap-2 bg-slate-900 dark:bg-slate-800 rounded-2xl p-1 shadow-lg animate-fade-in">
                       <button 
                         onClick={(e) => adjustQuantity(e, -1)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 text-white hover:bg-slate-700 transition-colors active:scale-95"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors active:scale-95"
                       >
                           <Minus className="h-4 w-4" />
                       </button>
                       <span className="w-8 text-center font-bold text-white text-sm">{quantity}</span>
                       <button 
                         onClick={(e) => adjustQuantity(e, 1)}
-                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 text-white hover:bg-slate-700 transition-colors active:scale-95"
+                        className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors active:scale-95"
                       >
                           <Plus className="h-4 w-4" />
                       </button>
@@ -225,7 +226,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
             <button 
                 onClick={handleDelete}
                 type="button"
-                className="p-2 rounded-full backdrop-blur-md bg-white/95 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 border border-red-100 cursor-pointer"
+                className="p-2 rounded-full backdrop-blur-md bg-white/95 dark:bg-slate-900/95 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95 border border-red-100 dark:border-red-900/30 cursor-pointer"
                 title="O'chirish"
             >
                 <Trash2 className="h-4 w-4" />
@@ -233,7 +234,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
             <button 
                 onClick={toggleEdit}
                 type="button"
-                className={`p-2 rounded-full backdrop-blur-md transition-all shadow-lg active:scale-95 border cursor-pointer ${isEditing ? 'bg-primary text-white border-primary' : 'bg-white/95 text-slate-500 hover:text-primary hover:bg-white border-slate-100'}`}
+                className={`p-2 rounded-full backdrop-blur-md transition-all shadow-lg active:scale-95 border cursor-pointer ${isEditing ? 'bg-primary text-white border-primary' : 'bg-white/95 dark:bg-slate-900/95 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-800 border-slate-100 dark:border-slate-800'}`}
                 title="Tahrirlash"
             >
                 {isEditing ? <Save className="h-4 w-4" onClick={handleSave} /> : <Edit2 className="h-4 w-4" />}

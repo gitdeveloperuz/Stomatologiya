@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { Upload, Sparkles, Lock, PhoneCall, MapPin } from 'lucide-react';
+
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, PhoneCall, MapPin } from 'lucide-react';
 
 interface HeroSectionProps {
   onImageSelected: (base64: string) => void;
@@ -8,8 +9,24 @@ interface HeroSectionProps {
   onAdminLoginClick: () => void;
 }
 
+const HERO_IMAGES = [
+  "https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2600&auto=format&fit=crop", // Tools close up
+  "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2600&auto=format&fit=crop", // Modern Chair
+  "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=2600&auto=format&fit=crop", // Smile/Model
+  "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?q=80&w=2600&auto=format&fit=crop"  // Dentist working
+];
+
 export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAnalyzing, isAdmin, onAdminLoginClick }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,24 +76,25 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
 
   return (
     <div className="relative bg-secondary overflow-hidden">
-      {/* Background with overlay */}
+      {/* Background Slideshow with overlay */}
       <div className="absolute inset-0 h-[500px] lg:h-[600px] z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2600&auto=format&fit=crop" 
-          alt="Dental Background" 
-          className="w-full h-full object-cover opacity-20"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary/90 via-secondary/95 to-slate-50" />
+        {HERO_IMAGES.map((src, index) => (
+            <img 
+              key={src}
+              src={src} 
+              alt={`Slide ${index + 1}`} 
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                  index === currentImageIndex ? 'opacity-30' : 'opacity-0'
+              }`}
+            />
+        ))}
+        {/* Gradient overlay - fades to transparent at bottom to blend with page bg (which is dark in darkmode, white in lightmode) */}
+        {/* Since page bg changes, transparency is the safest bet to blend. */}
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary/90 via-secondary/95 to-slate-50/0 dark:to-slate-950/0" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-12 pb-20 sm:px-6 lg:px-8 flex flex-col items-center text-center">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 pt-20 pb-20 sm:px-6 lg:px-8 flex flex-col items-center text-center">
         
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm text-sky-400 text-sm font-medium mb-8 animate-fade-in shadow-lg">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Professional Stomatologiya</span>
-        </div>
-
         {/* Heading */}
         <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white tracking-tight mb-6 leading-[1.1]">
           Mukammal Tabassum <br className="hidden sm:block" />
@@ -114,29 +132,29 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-3xl p-1.5 shadow-2xl shadow-slate-900/10">
-              <div className="bg-slate-50 rounded-[20px] border border-slate-100 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl p-1.5 shadow-2xl shadow-slate-900/10 transition-colors">
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-[20px] border border-slate-100 dark:border-slate-700 p-5 flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
                  <div className="flex items-center gap-3 text-left w-full sm:w-auto">
-                    <div className="bg-primary/10 p-3 rounded-2xl">
-                      <PhoneCall className="h-6 w-6 text-primary" />
+                    <div className="bg-primary/10 dark:bg-primary/20 p-3 rounded-2xl">
+                      <PhoneCall className="h-6 w-6 text-primary dark:text-sky-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Qabulga yozilish</p>
-                      <a href="tel:+998901234567" className="text-lg font-bold text-slate-900 hover:text-primary transition-colors">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Qabulga yozilish</p>
+                      <a href="tel:+998901234567" className="text-lg font-bold text-slate-900 dark:text-white hover:text-primary transition-colors">
                         +998 90 123 45 67
                       </a>
                     </div>
                  </div>
                  
-                 <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
+                 <div className="hidden sm:block w-px h-10 bg-slate-200 dark:bg-slate-700"></div>
 
                  <div className="flex items-center gap-3 text-left w-full sm:w-auto">
-                    <div className="bg-emerald-500/10 p-3 rounded-2xl">
-                      <MapPin className="h-6 w-6 text-emerald-600" />
+                    <div className="bg-emerald-500/10 dark:bg-emerald-500/20 p-3 rounded-2xl">
+                      <MapPin className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Manzil</p>
-                      <p className="text-sm font-bold text-slate-900">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Manzil</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">
                         Toshkent sh., Chilonzor
                       </p>
                     </div>
