@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Upload, Camera, Sparkles } from 'lucide-react';
+import { Upload, Sparkles } from 'lucide-react';
 
 interface HeroSectionProps {
   onImageSelected: (base64: string) => void;
@@ -57,11 +57,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
             onChange={handleFileChange}
           />
           
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex justify-center w-full">
             <button 
               onClick={() => fileInputRef.current?.click()}
               disabled={isAnalyzing}
-              className="flex items-center justify-center gap-2 px-8 py-4 bg-primary hover:bg-sky-600 text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-primary hover:bg-sky-600 text-white rounded-2xl font-semibold shadow-lg shadow-primary/30 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isAnalyzing ? (
                 <>
@@ -74,15 +74,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
                   Rasm Yuklash
                 </>
               )}
-            </button>
-            
-            <button 
-               onClick={() => fileInputRef.current?.click()} // Simplified for demo, could open camera specifically
-               disabled={isAnalyzing}
-               className="flex items-center justify-center gap-2 px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-2xl font-semibold transition-all disabled:opacity-50"
-            >
-              <Camera className="h-5 w-5" />
-              Rasmga Olish
             </button>
           </div>
           
