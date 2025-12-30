@@ -88,9 +88,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
               }`}
             />
         ))}
-        {/* Gradient overlay - fades to transparent at bottom to blend with page bg (which is dark in darkmode, white in lightmode) */}
-        {/* Since page bg changes, transparency is the safest bet to blend. */}
-        <div className="absolute inset-0 bg-gradient-to-b from-secondary/90 via-secondary/95 to-slate-50/0 dark:to-slate-950/0" />
+        {/* Gradient overlay - fade to transparent secondary to avoid grey casting when fading to white */}
+        <div className="absolute inset-0 bg-gradient-to-b from-secondary/90 via-secondary/95 to-secondary/0" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 pt-20 pb-20 sm:px-6 lg:px-8 flex flex-col items-center text-center">
