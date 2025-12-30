@@ -1,0 +1,7 @@
+{
+  "name": "Stomatologiya AI",
+  "description": "Smart dental clinic application with AI-powered smile analysis and treatment estimation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
