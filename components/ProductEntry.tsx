@@ -37,12 +37,14 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
     }, 2000);
   };
 
+  const mimeType = image.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+
   return (
     <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex flex-col md:flex-row animate-fade-in ring-1 ring-slate-900/5">
         {/* Image Side */}
         <div className="md:w-5/12 bg-slate-100 relative min-h-[300px] md:min-h-full group overflow-hidden">
             <img 
-                src={`data:image/jpeg;base64,${image}`} 
+                src={`data:${mimeType};base64,${image}`} 
                 alt="Yuklangan" 
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
             />
@@ -52,7 +54,7 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                       <ImageIcon className="h-4 w-4 text-sky-300" />
                       <span className="text-xs font-bold uppercase tracking-wider text-sky-200">Yangi Mahsulot</span>
                    </div>
-                   <p className="text-sm opacity-90">Ushbu rasm asosida yangi xizmat turini yarating.</p>
+                   <p className="text-sm opacity-90">Ushbu rasm asosida yangi mahsulot turini yarating.</p>
                 </div>
             </div>
         </div>
@@ -64,14 +66,14 @@ export const ProductEntry: React.FC<ProductEntryProps> = ({ image, onSave }) => 
                 <span className="bg-primary/10 p-2 rounded-xl text-primary">
                   <Sparkles className="h-6 w-6" />
                 </span>
-                Xizmat Yaratish
+                Mahsulot Yaratish
               </h2>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2 ml-1">
-                        Xizmat Nomi
+                        Mahsulot Nomi
                     </label>
                     <input 
                         type="text" 

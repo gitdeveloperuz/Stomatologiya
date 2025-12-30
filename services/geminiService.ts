@@ -5,6 +5,9 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeDentalImage = async (base64Image: string): Promise<Treatment[]> => {
   try {
+    // Detect mime type
+    const mimeType = base64Image.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -12,7 +15,7 @@ export const analyzeDentalImage = async (base64Image: string): Promise<Treatment
           {
             inlineData: {
               data: base64Image,
-              mimeType: 'image/jpeg', // Assuming JPEG for simplicity from canvas/input
+              mimeType: mimeType, 
             },
           },
           {

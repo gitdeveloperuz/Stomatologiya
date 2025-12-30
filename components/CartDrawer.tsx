@@ -1,18 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, CalendarCheck, ChevronLeft, User, Phone, MapPin, MessageSquare, CreditCard, Truck, Store, CheckCircle, Send, Loader2, Banknote, Wallet } from 'lucide-react';
 import { CartItem } from '../types';
-import { CURRENCY_FORMATTER } from '../constants';
+import { CURRENCY_FORMATTER, TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_ID } from '../constants';
 import * as XLSX from 'xlsx';
-
-// ------------------------------------------------------------------
-// CONFIGURATION
-// ------------------------------------------------------------------
-const TELEGRAM_BOT_TOKEN: string = '8204799466:AAHvhm6ymD9NyJ77KCCdZgt9Ba2ZJBpE94I'; 
-
-// REPLACE THIS WITH THE ADMIN'S TELEGRAM USER ID (e.g., '987654321')
-// NOTE: The Admin MUST start a chat with the bot (press /start) for this to work.
-const TELEGRAM_ADMIN_ID: string = '153931240'; 
-// ------------------------------------------------------------------
 
 interface CartDrawerProps {
   isOpen: boolean;

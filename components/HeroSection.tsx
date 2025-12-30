@@ -14,6 +14,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const isPng = file.type === 'image/png';
       const reader = new FileReader();
       reader.onload = (event) => {
         // Compress Image
@@ -33,14 +34,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onImageSelected, isAna
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
             
-            // Compress to JPEG 60% quality
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-            
-            // Remove data:image/jpeg;base64, prefix
-            const base64Data = compressedBase64.split(',')[1];
-            onImageSelected(base64Data);
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Use PNG if original was PNG (preserves transparency), otherwise JPEG 60%
+                let compressedBase64;
+                if (isPng) {
+                    compressedBase64 = canvas.toDataURL('image/png');
+                } else {
+                    compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                }
+                
+                // Remove data:image/xxx;base64, prefix
+                const base64Data = compressedBase64.split(',')[1];
+                onImageSelected(base64Data);
+            }
         };
         img.src = event.target?.result as string;
       };

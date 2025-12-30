@@ -85,6 +85,10 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
     }
   };
 
+  // Determine Image Type based on Base64 signature
+  // iVBOR... is PNG, /9j/... is JPEG
+  const mimeType = treatment.imageUrl?.startsWith('iVBOR') ? 'image/png' : 'image/jpeg';
+
   return (
     <div className="group flex flex-col bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden h-full relative isolate">
       
@@ -102,7 +106,7 @@ export const TreatmentCard: React.FC<TreatmentCardProps> = ({ treatment, onAdd, 
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
         {treatment.imageUrl ? (
             <img 
-                src={`data:image/jpeg;base64,${treatment.imageUrl}`} 
+                src={`data:${mimeType};base64,${treatment.imageUrl}`} 
                 alt={name} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             />

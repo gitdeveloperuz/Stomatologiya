@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
@@ -5,8 +6,11 @@ import { CartDrawer } from './components/CartDrawer';
 import { TreatmentCard } from './components/TreatmentCard';
 import { AdminLogin } from './components/AdminLogin';
 import { ProductEntry } from './components/ProductEntry';
+import { ConfirmModal } from './components/ConfirmModal';
+import { ChatWidget } from './components/ChatWidget';
+import { AdminChat } from './components/AdminChat';
 import { Treatment, CartItem } from './types';
-import { Stethoscope, CloudOff, Cloud, AlertTriangle } from 'lucide-react';
+import { Stethoscope, CloudOff, Cloud, AlertTriangle, LayoutGrid, MessageSquare } from 'lucide-react';
 import { initDB, saveTreatment, deleteTreatment, subscribeToTreatments, isCloudConfigured } from './services/db';
 
 const App: React.FC = () => {
@@ -22,6 +26,10 @@ const App: React.FC = () => {
   // Admin State
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<'products' | 'chat'>('products');
+  
+  // Delete Confirmation State
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Initialize DB and Real-time Subscription
   useEffect(() => {
@@ -74,6 +82,7 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     
     setUploadedImage(base64Data);
+    setAdminTab('products'); // Switch to product tab to show entry form
     
     // Scroll to form immediately
     setTimeout(() => {
@@ -129,13 +138,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRemoveService = async (id: string) => {
-    if (window.confirm("Rostdan ham ushbu xizmatni o'chirmoqchimisiz?")) {
+  const handleRemoveClick = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteId) {
         try {
-            await deleteTreatment(id);
+            await deleteTreatment(deleteId);
         } catch (error) {
             console.error("Failed to delete from DB:", error);
         }
+        setDeleteId(null);
     }
   };
 
@@ -201,81 +215,110 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <HeroSection 
-        onImageSelected={handleImageSelected} 
-        isAnalyzing={false} 
-        isAdmin={isAdmin}
-        onAdminLoginClick={() => setIsAdminModalOpen(true)}
-      />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 relative z-10">
-        
-        {/* Product Entry Section (Admin Only, Image Uploaded) */}
-        {uploadedImage && isAdmin && (
-          <div id="product-entry-section" className="mb-20 scroll-mt-24">
-             <ProductEntry 
-                image={uploadedImage}
-                onSave={handleAddService}
-             />
+      {/* ADMIN NAVIGATION TABS */}
+      {isAdmin && (
+          <div className="bg-white border-b border-slate-200 sticky top-16 z-40 shadow-sm">
+              <div className="max-w-7xl mx-auto px-4 flex gap-6 overflow-x-auto">
+                  <button 
+                    onClick={() => setAdminTab('products')}
+                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'products' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                  >
+                      <LayoutGrid className="h-4 w-4" /> Mahsulotlar
+                  </button>
+                  <button 
+                    onClick={() => setAdminTab('chat')}
+                    className={`py-4 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${adminTab === 'chat' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                  >
+                      <MessageSquare className="h-4 w-4" /> Xabarlar
+                  </button>
+              </div>
           </div>
-        )}
+      )}
 
-        {/* Services List Section */}
-        <div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-white border border-slate-100 shadow-sm rounded-2xl text-slate-700">
-                <Stethoscope className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Xizmatlar</h2>
-                <p className="text-slate-500 text-sm">Barcha stomatologiya xizmatlari</p>
-              </div>
-            </div>
-            {!isAdmin && services.length > 0 && (
-                <div className="hidden sm:block text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
-                    Barcha xizmatlar litsenziyalangan
+      {/* Main Content Area */}
+      {isAdmin && adminTab === 'chat' ? (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+              <AdminChat />
+          </div>
+      ) : (
+          <>
+            <HeroSection 
+                onImageSelected={handleImageSelected} 
+                isAnalyzing={false} 
+                isAdmin={isAdmin}
+                onAdminLoginClick={() => setIsAdminModalOpen(true)}
+            />
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 relative z-10">
+                
+                {/* Product Entry Section (Admin Only, Image Uploaded) */}
+                {uploadedImage && isAdmin && (
+                <div id="product-entry-section" className="mb-20 scroll-mt-24">
+                    <ProductEntry 
+                        image={uploadedImage}
+                        onSave={handleAddService}
+                    />
                 </div>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {isLoadingServices ? (
-                 <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                    <p className="text-slate-500">Yuklanmoqda...</p>
-                 </div>
-            ) : services.length === 0 ? (
-                <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                      {dbError === 'PERMISSION_DENIED' ? (
-                         <CloudOff className="h-8 w-8 text-red-300" />
-                      ) : (
-                         <Stethoscope className="h-8 w-8 text-slate-300" />
-                      )}
+                )}
+
+                {/* Services List Section */}
+                <div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white border border-slate-100 shadow-sm rounded-2xl text-slate-700">
+                        <Stethoscope className="h-6 w-6 text-primary" />
                     </div>
-                    {dbError === 'PERMISSION_DENIED' ? (
-                       <p className="text-lg font-medium text-red-500">Baza ruxsatlari sozlanmagan.</p>
-                    ) : (
-                       <p className="text-lg font-medium text-slate-600">Hozircha xizmatlar mavjud emas.</p>
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">Mahsulotlar</h2>
+                        <p className="text-slate-500 text-sm">Barcha mahsulotlarimiz</p>
+                    </div>
+                    </div>
+                    {!isAdmin && services.length > 0 && (
+                        <div className="hidden sm:block text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                            Barcha mahsulotlar litsenziyalangan
+                        </div>
                     )}
-                    {isAdmin && !dbError && <p className="text-sm mt-2 text-primary bg-primary/5 px-4 py-2 rounded-full">Yuqoridagi rasm yuklash tugmasi orqali xizmat qo'shing.</p>}
                 </div>
-            ) : (
-                services.map(service => (
-                <TreatmentCard 
-                    key={service.id} 
-                    treatment={service} 
-                    onAdd={addToCart} 
-                    isAdmin={isAdmin}
-                    onRemove={() => handleRemoveService(service.id)}
-                />
-                ))
-            )}
-          </div>
-        </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                    {isLoadingServices ? (
+                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                            <p className="text-slate-500">Yuklanmoqda...</p>
+                        </div>
+                    ) : services.length === 0 ? (
+                        <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                            {dbError === 'PERMISSION_DENIED' ? (
+                                <CloudOff className="h-8 w-8 text-red-300" />
+                            ) : (
+                                <Stethoscope className="h-8 w-8 text-slate-300" />
+                            )}
+                            </div>
+                            {dbError === 'PERMISSION_DENIED' ? (
+                            <p className="text-lg font-medium text-red-500">Baza ruxsatlari sozlanmagan.</p>
+                            ) : (
+                            <p className="text-lg font-medium text-slate-600">Hozircha mahsulotlar mavjud emas.</p>
+                            )}
+                            {isAdmin && !dbError && <p className="text-sm mt-2 text-primary bg-primary/5 px-4 py-2 rounded-full">Yuqoridagi rasm yuklash tugmasi orqali mahsulot qo'shing.</p>}
+                        </div>
+                    ) : (
+                        services.map(service => (
+                        <TreatmentCard 
+                            key={service.id} 
+                            treatment={service} 
+                            onAdd={addToCart} 
+                            isAdmin={isAdmin}
+                            onRemove={() => handleRemoveClick(service.id)}
+                        />
+                        ))
+                    )}
+                </div>
+                </div>
 
-      </main>
+            </main>
+          </>
+      )}
 
       <CartDrawer 
         isOpen={isCartOpen} 
@@ -290,6 +333,17 @@ const App: React.FC = () => {
         onClose={() => setIsAdminModalOpen(false)} 
         onLogin={handleAdminLogin}
       />
+
+      <ConfirmModal 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleConfirmDelete}
+        title="O'chirishni tasdiqlang"
+        message="Siz rostdan ham ushbu mahsulotni o'chirmoqchimisiz? Bu amalni qaytarib bo'lmaydi."
+      />
+
+      {/* Chat for Users */}
+      {!isAdmin && <ChatWidget />}
     </div>
   );
 };

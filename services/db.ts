@@ -1,6 +1,7 @@
-import { Treatment } from '../types';
+
+import { Treatment, ChatMessage, ChatSession } from '../types';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot, query, orderBy, limit, addDoc, updateDoc, increment } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // ---------------------------------------------------------------
@@ -66,7 +67,7 @@ const initLocalDB = (): Promise<IDBDatabase> => {
 };
 
 // ---------------------------------------------------------------
-// REAL-TIME DATA SUBSCRIPTION
+// REAL-TIME DATA SUBSCRIPTION (TREATMENTS)
 // ---------------------------------------------------------------
 
 export const subscribeToTreatments = (
@@ -75,13 +76,13 @@ export const subscribeToTreatments = (
 ): () => void => {
     // 1. CLOUD MODE (Real-time Sync across devices)
     if (useCloud && db) {
-        const unsubscribe = onSnapshot(collection(db, "treatments"), (snapshot) => {
+        const unsubscribe = onSnapshot(collection(db, "treatments"), (snapshot: any) => {
             const items: Treatment[] = [];
-            snapshot.forEach((doc) => {
+            snapshot.forEach((doc: any) => {
                 items.push(doc.data() as Treatment);
             });
             onUpdate(items);
-        }, (error) => {
+        }, (error: any) => {
             console.error("Cloud Sync Error:", error);
             if (onError) onError(error);
         });
@@ -110,7 +111,83 @@ export const subscribeToTreatments = (
 };
 
 // ---------------------------------------------------------------
-// CRUD OPERATIONS
+// CHAT OPERATIONS (CLOUD ONLY)
+// ---------------------------------------------------------------
+
+export const sendMessage = async (sessionId: string, text: string, sender: 'user' | 'admin') => {
+    if (!useCloud || !db) return;
+
+    try {
+        const messageData: ChatMessage = {
+            id: `msg-${Date.now()}`,
+            text,
+            sender,
+            timestamp: Date.now(),
+            read: false
+        };
+
+        // 1. Add to messages subcollection
+        const messagesRef = collection(db, 'chats', sessionId, 'messages');
+        await addDoc(messagesRef, messageData);
+
+        // 2. Update session metadata (for Admin List)
+        const sessionRef = doc(db, 'chats', sessionId);
+        
+        // Calculate unread count logic
+        // If sender is user, admin has +1 unread. If sender is admin, user has +1 unread (simplified here to just tracking session activity)
+        await setDoc(sessionRef, {
+            id: sessionId,
+            lastMessage: text,
+            lastMessageTime: Date.now(),
+            unreadCount: sender === 'user' ? increment(1) : 0, // Reset if admin replies, increment if user sends
+            userName: sender === 'user' ? `Mijoz (ID: ${sessionId.slice(0, 4)})` : undefined // Simple naming
+        }, { merge: true });
+
+    } catch (e) {
+        console.error("Chat Send Error:", e);
+    }
+};
+
+export const subscribeToChatMessages = (sessionId: string, onUpdate: (msgs: ChatMessage[]) => void) => {
+    if (!useCloud || !db) return () => {};
+
+    const messagesRef = collection(db, 'chats', sessionId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+    return onSnapshot(q, (snapshot: any) => {
+        const msgs: ChatMessage[] = [];
+        snapshot.forEach((doc: any) => msgs.push(doc.data() as ChatMessage));
+        onUpdate(msgs);
+    });
+};
+
+export const subscribeToAllSessions = (onUpdate: (sessions: ChatSession[]) => void) => {
+    if (!useCloud || !db) return () => {};
+
+    const chatsRef = collection(db, 'chats');
+    const q = query(chatsRef, orderBy('lastMessageTime', 'desc'));
+
+    return onSnapshot(q, (snapshot: any) => {
+        const sessions: ChatSession[] = [];
+        snapshot.forEach((doc: any) => {
+            const data = doc.data();
+            sessions.push({
+                id: doc.id,
+                ...data
+            } as ChatSession);
+        });
+        onUpdate(sessions);
+    });
+};
+
+export const markSessionRead = async (sessionId: string) => {
+    if (!useCloud || !db) return;
+    const sessionRef = doc(db, 'chats', sessionId);
+    await updateDoc(sessionRef, { unreadCount: 0 });
+};
+
+// ---------------------------------------------------------------
+// CRUD OPERATIONS (TREATMENTS)
 // ---------------------------------------------------------------
 
 export const initDB = async (): Promise<void> => {
