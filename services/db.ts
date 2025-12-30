@@ -1,22 +1,22 @@
 import { Treatment } from '../types';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // ---------------------------------------------------------------
 // CLOUD DATABASE CONFIGURATION (FIREBASE)
 // ---------------------------------------------------------------
-// To enable Multi-Device Sync (Admin on PC -> User on Phone):
-// 1. Go to console.firebase.google.com and create a free project
-// 2. Create a Firestore Database (Start in Test Mode)
-// 3. Paste the config keys below
+// Keys provided by user.
 // ---------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "", // e.g., "AIzaSy..."
-  authDomain: "", // e.g., "project-id.firebaseapp.com"
-  projectId: "", // e.g., "project-id"
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyD4TgCdJOnDv43XP_iGuuUmMuGP5jaSpIM",
+  authDomain: "couz-1d994.firebaseapp.com",
+  databaseURL: "https://couz-1d994.firebaseio.com",
+  projectId: "couz-1d994",
+  storageBucket: "couz-1d994.firebasestorage.app",
+  messagingSenderId: "1069146264746",
+  appId: "1:1069146264746:web:535f4f360e37ab07362cd3",
+  measurementId: "G-Y90B95XKYM"
 };
 
 let db: any = null;
@@ -27,16 +27,22 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     try {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
+        
+        // Initialize Analytics if supported (Client side only)
+        isSupported().then(yes => {
+            if (yes) getAnalytics(app);
+        }).catch(() => {});
+
         useCloud = true;
         console.log("Using Cloud Database (Firebase)");
     } catch (e) {
         console.error("Firebase Init Error:", e);
-        console.warn("Falling back to Local Database (IndexedDB)");
     }
 } else {
-    console.warn("No Firebase Keys found. Using Local Database (IndexedDB). Data will NOT sync across devices.");
+    console.warn("No Firebase Keys found. Using Local Database (IndexedDB).");
 }
 
+export const isCloudConfigured = useCloud;
 
 // ---------------------------------------------------------------
 // LOCAL DATABASE CONFIGURATION (INDEXEDDB)
@@ -60,58 +66,86 @@ const initLocalDB = (): Promise<IDBDatabase> => {
 };
 
 // ---------------------------------------------------------------
-// UNIFIED API
+// REAL-TIME DATA SUBSCRIPTION
+// ---------------------------------------------------------------
+
+export const subscribeToTreatments = (
+    onUpdate: (data: Treatment[]) => void, 
+    onError?: (error: any) => void
+): () => void => {
+    // 1. CLOUD MODE (Real-time Sync across devices)
+    if (useCloud && db) {
+        const unsubscribe = onSnapshot(collection(db, "treatments"), (snapshot) => {
+            const items: Treatment[] = [];
+            snapshot.forEach((doc) => {
+                items.push(doc.data() as Treatment);
+            });
+            onUpdate(items);
+        }, (error) => {
+            console.error("Cloud Sync Error:", error);
+            if (onError) onError(error);
+        });
+        return unsubscribe;
+    }
+
+    // 2. LOCAL MODE (Real-time Sync across tabs on same device)
+    // Initial fetch
+    getAllTreatments()
+        .then(onUpdate)
+        .catch(err => onError && onError(err));
+
+    // Listen for tab updates
+    const channel = new BroadcastChannel('stomatologiya_updates');
+    channel.onmessage = (event) => {
+        if (event.data === 'db_update') {
+            getAllTreatments()
+                .then(onUpdate)
+                .catch(err => onError && onError(err));
+        }
+    };
+
+    return () => {
+        channel.close();
+    };
+};
+
+// ---------------------------------------------------------------
+// CRUD OPERATIONS
 // ---------------------------------------------------------------
 
 export const initDB = async (): Promise<void> => {
-    if (useCloud) return; // Firebase auto-initializes
+    if (useCloud) return; 
     await initLocalDB();
 };
 
-export const getAllTreatments = async (): Promise<Treatment[]> => {
-  // CLOUD MODE
-  if (useCloud && db) {
-      try {
-          const querySnapshot = await getDocs(collection(db, "treatments"));
-          const items: Treatment[] = [];
-          querySnapshot.forEach((doc) => {
-              items.push(doc.data() as Treatment);
-          });
-          return items;
-      } catch (e) {
-          console.error("Cloud Fetch Error:", e);
-          return [];
-      }
-  }
-
-  // LOCAL MODE
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onsuccess = () => {
-      const dbLocal = request.result;
-      try {
-        const transaction = dbLocal.transaction(STORE_NAME, 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
-        const getAllRequest = store.getAll();
-        getAllRequest.onsuccess = () => resolve(getAllRequest.result || []);
-        getAllRequest.onerror = () => reject(getAllRequest.error);
-      } catch (e) {
-        resolve([]);
-      }
-    };
-    request.onerror = () => reject(request.error);
-  });
+// Helper for local fetch
+const getAllTreatments = (): Promise<Treatment[]> => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = () => {
+            const dbLocal = request.result;
+            try {
+                const transaction = dbLocal.transaction(STORE_NAME, 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const getAllRequest = store.getAll();
+                getAllRequest.onsuccess = () => resolve(getAllRequest.result || []);
+                getAllRequest.onerror = () => reject(getAllRequest.error);
+            } catch (e) {
+                resolve([]);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
 
 export const saveTreatment = async (treatment: Treatment): Promise<void> => {
-  // CLOUD MODE
+  // CLOUD
   if (useCloud && db) {
-      // Create a document with the same ID
       await setDoc(doc(db, "treatments", treatment.id), treatment);
       return;
   }
 
-  // LOCAL MODE
+  // LOCAL
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => {
@@ -119,7 +153,13 @@ export const saveTreatment = async (treatment: Treatment): Promise<void> => {
       const transaction = dbLocal.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const putRequest = store.put(treatment);
-      putRequest.onsuccess = () => resolve();
+      putRequest.onsuccess = () => {
+          // Notify other tabs
+          const channel = new BroadcastChannel('stomatologiya_updates');
+          channel.postMessage('db_update');
+          channel.close();
+          resolve();
+      };
       putRequest.onerror = () => reject(putRequest.error);
     };
     request.onerror = () => reject(request.error);
@@ -127,13 +167,13 @@ export const saveTreatment = async (treatment: Treatment): Promise<void> => {
 };
 
 export const deleteTreatment = async (id: string): Promise<void> => {
-   // CLOUD MODE
+   // CLOUD
    if (useCloud && db) {
        await deleteDoc(doc(db, "treatments", id));
        return;
    }
 
-   // LOCAL MODE
+   // LOCAL
    return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => {
@@ -141,7 +181,13 @@ export const deleteTreatment = async (id: string): Promise<void> => {
       const transaction = dbLocal.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const deleteRequest = store.delete(id);
-      deleteRequest.onsuccess = () => resolve();
+      deleteRequest.onsuccess = () => {
+           // Notify other tabs
+           const channel = new BroadcastChannel('stomatologiya_updates');
+           channel.postMessage('db_update');
+           channel.close();
+           resolve();
+      };
       deleteRequest.onerror = () => reject(deleteRequest.error);
     };
     request.onerror = () => reject(request.error);

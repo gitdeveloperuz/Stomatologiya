@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { CartDrawer } from './components/CartDrawer';
 import { TreatmentCard } from './components/TreatmentCard';
 import { AdminLogin } from './components/AdminLogin';
 import { ProductEntry } from './components/ProductEntry';
-import { STATIC_SERVICES } from './constants';
 import { Treatment, CartItem } from './types';
-import { Stethoscope } from 'lucide-react';
-import { initDB, getAllTreatments, saveTreatment, deleteTreatment } from './services/db';
+import { Stethoscope, CloudOff, Cloud, AlertTriangle } from 'lucide-react';
+import { initDB, saveTreatment, deleteTreatment, subscribeToTreatments, isCloudConfigured } from './services/db';
 
 const App: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -18,62 +17,50 @@ const App: React.FC = () => {
   // Services State
   const [services, setServices] = useState<Treatment[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
   
   // Admin State
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      await initDB();
-      let storedServices = await getAllTreatments();
-      
-      // CLEANUP: If there are any old static services in the DB from previous runs, remove them
-      // so the app is truly empty until the Admin uploads something.
-      const staticItems = storedServices.filter(s => s.id.startsWith('static-'));
-      if (staticItems.length > 0) {
-        console.log("Cleaning up old static services...");
-        for (const item of staticItems) {
-            await deleteTreatment(item.id);
-        }
-        // Refresh list after deletion
-        storedServices = await getAllTreatments();
-      }
-
-      // Sort by newest first (using ID timestamp convention custom-TIMESTAMP)
-      const sorted = storedServices.sort((a, b) => {
-         // Simple string comparison works for "custom-TIMESTAMP" to put newest (larger timestamp) first
-         // because "custom-" is constant. 
-         // Actually string compare might be tricky with variable lengths, let's parse.
-         const timeA = parseInt(a.id.replace('custom-', '')) || 0;
-         const timeB = parseInt(b.id.replace('custom-', '')) || 0;
-         return timeB - timeA;
-      });
-      
-      setServices(sorted);
-    } catch (error) {
-      console.error("Failed to load services from DB:", error);
-    } finally {
-      setIsLoadingServices(false);
-    }
-  }, []);
-
-  // Initialize DB, load services, and setup sync listener
+  // Initialize DB and Real-time Subscription
   useEffect(() => {
-    loadData();
+    // 1. Init DB (create object store if local)
+    initDB();
 
-    // Listen for updates from other tabs (e.g., Admin tab updates, User tab refreshes)
-    const channel = new BroadcastChannel('stomatologiya_updates');
-    channel.onmessage = (event) => {
-        if (event.data === 'db_update') {
-            loadData();
+    // 2. Subscribe to updates (Real-time)
+    const unsubscribe = subscribeToTreatments(
+      (data) => {
+        // Success callback
+        setDbError(null); // Clear any previous errors
+        
+        // Sort by newest first (using ID timestamp convention custom-TIMESTAMP)
+        const sorted = data.sort((a, b) => {
+            const timeA = parseInt(a.id.replace('custom-', '')) || 0;
+            const timeB = parseInt(b.id.replace('custom-', '')) || 0;
+            return timeB - timeA;
+        });
+        
+        // Remove any old static services if they exist
+        const cleaned = sorted.filter(s => !s.id.startsWith('static-'));
+        
+        setServices(cleaned);
+        setIsLoadingServices(false);
+      },
+      (error) => {
+        // Error callback
+        console.error("DB Error:", error);
+        if (error?.code === 'permission-denied') {
+          setDbError('PERMISSION_DENIED');
+        } else {
+          setDbError('UNKNOWN');
         }
-    };
+        setIsLoadingServices(false);
+      }
+    );
 
-    return () => {
-        channel.close();
-    };
-  }, [loadData]);
+    return () => unsubscribe();
+  }, []);
 
   const handleAdminLogin = (password: string) => {
     if (password === 'admin123') { // Simple hardcoded password
@@ -118,12 +105,6 @@ const App: React.FC = () => {
     setIsCartOpen(true);
   };
 
-  const notifyUpdates = () => {
-      const channel = new BroadcastChannel('stomatologiya_updates');
-      channel.postMessage('db_update');
-      channel.close();
-  };
-
   const handleAddService = async (data: Omit<Treatment, 'id'> & { imageUrl: string }) => {
     const newService: Treatment = {
       id: `custom-${Date.now()}`,
@@ -131,31 +112,27 @@ const App: React.FC = () => {
       recommended: false
     };
     
-    // Optimistic Update
-    setServices(prev => [newService, ...prev]);
-    
     // Clear upload state
     setUploadedImage(null);
 
-    // Persist to DB and Notify
+    // Persist to DB
     try {
         await saveTreatment(newService);
-        notifyUpdates();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save to DB:", error);
-        alert("Xatolik: Ma'lumotni saqlab bo'lmadi. Iltimos qayta urinib ko'ring.");
+        if (error?.code === 'permission-denied') {
+          alert("Xatolik: Baza yozishdan himoyalangan (Rules settings). Firebase Console-da ruxsatlarni to'g'irlang.");
+          setDbError('PERMISSION_DENIED');
+        } else {
+          alert("Xatolik: Ma'lumotni saqlab bo'lmadi. Internetni tekshiring.");
+        }
     }
   };
 
   const handleRemoveService = async (id: string) => {
     if (window.confirm("Rostdan ham ushbu xizmatni o'chirmoqchimisiz?")) {
-        // Optimistic Update
-        setServices(prev => prev.filter(service => service.id !== id));
-        
-        // Remove from DB and Notify
         try {
             await deleteTreatment(id);
-            notifyUpdates();
         } catch (error) {
             console.error("Failed to delete from DB:", error);
         }
@@ -182,6 +159,47 @@ const App: React.FC = () => {
           setUploadedImage(null);
         }}
       />
+
+      {/* CLOUD STATUS & ERROR WARNINGS FOR ADMIN */}
+      {isAdmin && (
+        <div className="relative z-50">
+          {!isCloudConfigured && (
+            <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-amber-900 text-sm font-medium text-center">
+              <div className="flex items-center justify-center gap-2">
+                  <CloudOff className="h-4 w-4" />
+                  <span>
+                    <strong>DIQQAT:</strong> Bulutli baza ulanmagan. Ma'lumotlar faqat <u>shu telefonda</u> saqlanadi. 
+                    Boshqa qurilmalarda ko'rinishi uchun Firebase kalitlarini kodga qo'shing.
+                  </span>
+              </div>
+            </div>
+          )}
+          
+          {isCloudConfigured && dbError === 'PERMISSION_DENIED' && (
+             <div className="bg-red-50 border-b border-red-200 px-4 py-4 text-red-900 text-sm font-medium text-center animate-pulse">
+                <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="flex items-center gap-2 font-bold text-red-600 text-base">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span>XATOLIK: Baza Yozishdan Himoyalangan (Production Mode)</span>
+                    </div>
+                    <p>Firebase Console &gt; Firestore &gt; <strong>Rules</strong> bo'limiga kiring va quyidagini yozing:</p>
+                    <code className="bg-white px-3 py-1.5 rounded border border-red-200 text-red-700 font-mono mt-1 text-xs select-all">
+                      allow read, write: if true;
+                    </code>
+                </div>
+             </div>
+          )}
+
+          {isCloudConfigured && !dbError && (
+              <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-emerald-800 text-xs font-bold text-center">
+                <div className="flex items-center justify-center gap-2">
+                    <Cloud className="h-3 w-3" />
+                    <span>ONLINE: Barcha o'zgarishlar mijozlarda avtomatik yangilanadi.</span>
+                </div>
+              </div>
+          )}
+        </div>
+      )}
 
       <HeroSection 
         onImageSelected={handleImageSelected} 
@@ -230,10 +248,18 @@ const App: React.FC = () => {
             ) : services.length === 0 ? (
                 <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                      <Stethoscope className="h-8 w-8 text-slate-300" />
+                      {dbError === 'PERMISSION_DENIED' ? (
+                         <CloudOff className="h-8 w-8 text-red-300" />
+                      ) : (
+                         <Stethoscope className="h-8 w-8 text-slate-300" />
+                      )}
                     </div>
-                    <p className="text-lg font-medium text-slate-600">Hozircha xizmatlar mavjud emas.</p>
-                    {isAdmin && <p className="text-sm mt-2 text-primary bg-primary/5 px-4 py-2 rounded-full">Yuqoridagi rasm yuklash tugmasi orqali xizmat qo'shing.</p>}
+                    {dbError === 'PERMISSION_DENIED' ? (
+                       <p className="text-lg font-medium text-red-500">Baza ruxsatlari sozlanmagan.</p>
+                    ) : (
+                       <p className="text-lg font-medium text-slate-600">Hozircha xizmatlar mavjud emas.</p>
+                    )}
+                    {isAdmin && !dbError && <p className="text-sm mt-2 text-primary bg-primary/5 px-4 py-2 rounded-full">Yuqoridagi rasm yuklash tugmasi orqali xizmat qo'shing.</p>}
                 </div>
             ) : (
                 services.map(service => (
