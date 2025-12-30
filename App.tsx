@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { CartDrawer } from './components/CartDrawer';
@@ -23,52 +23,57 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
 
-  // Initialize DB and load services on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        await initDB();
-        let storedServices = await getAllTreatments();
-        
-        // Seed DB with static services if empty
-        if (!storedServices || storedServices.length === 0) {
-            console.log("Database empty, seeding static services...");
-            for (const service of STATIC_SERVICES) {
-                await saveTreatment(service);
-            }
-            // Reload after seeding
-            storedServices = await getAllTreatments();
+  const loadData = useCallback(async () => {
+    try {
+      await initDB();
+      let storedServices = await getAllTreatments();
+      
+      // CLEANUP: If there are any old static services in the DB from previous runs, remove them
+      // so the app is truly empty until the Admin uploads something.
+      const staticItems = storedServices.filter(s => s.id.startsWith('static-'));
+      if (staticItems.length > 0) {
+        console.log("Cleaning up old static services...");
+        for (const item of staticItems) {
+            await deleteTreatment(item.id);
         }
-
-        if (storedServices && storedServices.length > 0) {
-            // Sort by creation time (descending) - assuming ID structure or just newest added last
-            // For string IDs, we just display as is, or can sort if we add a timestamp field later.
-            // Let's put Custom (uploaded) items first. Custom items have "custom-" prefix usually.
-            const sorted = storedServices.sort((a, b) => {
-               const isACustom = a.id.startsWith('custom-');
-               const isBCustom = b.id.startsWith('custom-');
-               if (isACustom && !isBCustom) return -1;
-               if (!isACustom && isBCustom) return 1;
-               
-               // If both custom, sort by ID (assuming timestamp based ID)
-               if (isACustom && isBCustom) {
-                   return b.id.localeCompare(a.id);
-               }
-               return 0;
-            });
-            setServices(sorted);
-        } else {
-            setServices(STATIC_SERVICES);
-        }
-      } catch (error) {
-        console.error("Failed to load services from DB:", error);
-        setServices(STATIC_SERVICES);
-      } finally {
-        setIsLoadingServices(false);
+        // Refresh list after deletion
+        storedServices = await getAllTreatments();
       }
-    };
-    loadData();
+
+      // Sort by newest first (using ID timestamp convention custom-TIMESTAMP)
+      const sorted = storedServices.sort((a, b) => {
+         // Simple string comparison works for "custom-TIMESTAMP" to put newest (larger timestamp) first
+         // because "custom-" is constant. 
+         // Actually string compare might be tricky with variable lengths, let's parse.
+         const timeA = parseInt(a.id.replace('custom-', '')) || 0;
+         const timeB = parseInt(b.id.replace('custom-', '')) || 0;
+         return timeB - timeA;
+      });
+      
+      setServices(sorted);
+    } catch (error) {
+      console.error("Failed to load services from DB:", error);
+    } finally {
+      setIsLoadingServices(false);
+    }
   }, []);
+
+  // Initialize DB, load services, and setup sync listener
+  useEffect(() => {
+    loadData();
+
+    // Listen for updates from other tabs (e.g., Admin tab updates, User tab refreshes)
+    const channel = new BroadcastChannel('stomatologiya_updates');
+    channel.onmessage = (event) => {
+        if (event.data === 'db_update') {
+            loadData();
+        }
+    };
+
+    return () => {
+        channel.close();
+    };
+  }, [loadData]);
 
   const handleAdminLogin = (password: string) => {
     if (password === 'admin123') { // Simple hardcoded password
@@ -113,6 +118,12 @@ const App: React.FC = () => {
     setIsCartOpen(true);
   };
 
+  const notifyUpdates = () => {
+      const channel = new BroadcastChannel('stomatologiya_updates');
+      channel.postMessage('db_update');
+      channel.close();
+  };
+
   const handleAddService = async (data: Omit<Treatment, 'id'> & { imageUrl: string }) => {
     const newService: Treatment = {
       id: `custom-${Date.now()}`,
@@ -126,9 +137,10 @@ const App: React.FC = () => {
     // Clear upload state
     setUploadedImage(null);
 
-    // Persist to DB
+    // Persist to DB and Notify
     try {
         await saveTreatment(newService);
+        notifyUpdates();
     } catch (error) {
         console.error("Failed to save to DB:", error);
         alert("Xatolik: Ma'lumotni saqlab bo'lmadi. Iltimos qayta urinib ko'ring.");
@@ -140,9 +152,10 @@ const App: React.FC = () => {
         // Optimistic Update
         setServices(prev => prev.filter(service => service.id !== id));
         
-        // Remove from DB
+        // Remove from DB and Notify
         try {
             await deleteTreatment(id);
+            notifyUpdates();
         } catch (error) {
             console.error("Failed to delete from DB:", error);
         }
