@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { CartDrawer } from './components/CartDrawer';
@@ -8,18 +8,67 @@ import { ProductEntry } from './components/ProductEntry';
 import { STATIC_SERVICES } from './constants';
 import { Treatment, CartItem } from './types';
 import { Stethoscope } from 'lucide-react';
+import { initDB, getAllTreatments, saveTreatment, deleteTreatment } from './services/db';
 
 const App: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   
-  // Services State - initialized with static data (now empty)
-  const [services, setServices] = useState<Treatment[]>(STATIC_SERVICES);
+  // Services State
+  const [services, setServices] = useState<Treatment[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
   
   // Admin State
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+
+  // Initialize DB and load services on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await initDB();
+        let storedServices = await getAllTreatments();
+        
+        // Seed DB with static services if empty
+        if (!storedServices || storedServices.length === 0) {
+            console.log("Database empty, seeding static services...");
+            for (const service of STATIC_SERVICES) {
+                await saveTreatment(service);
+            }
+            // Reload after seeding
+            storedServices = await getAllTreatments();
+        }
+
+        if (storedServices && storedServices.length > 0) {
+            // Sort by creation time (descending) - assuming ID structure or just newest added last
+            // For string IDs, we just display as is, or can sort if we add a timestamp field later.
+            // Let's put Custom (uploaded) items first. Custom items have "custom-" prefix usually.
+            const sorted = storedServices.sort((a, b) => {
+               const isACustom = a.id.startsWith('custom-');
+               const isBCustom = b.id.startsWith('custom-');
+               if (isACustom && !isBCustom) return -1;
+               if (!isACustom && isBCustom) return 1;
+               
+               // If both custom, sort by ID (assuming timestamp based ID)
+               if (isACustom && isBCustom) {
+                   return b.id.localeCompare(a.id);
+               }
+               return 0;
+            });
+            setServices(sorted);
+        } else {
+            setServices(STATIC_SERVICES);
+        }
+      } catch (error) {
+        console.error("Failed to load services from DB:", error);
+        setServices(STATIC_SERVICES);
+      } finally {
+        setIsLoadingServices(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleAdminLogin = (password: string) => {
     if (password === 'admin123') { // Simple hardcoded password
@@ -64,22 +113,40 @@ const App: React.FC = () => {
     setIsCartOpen(true);
   };
 
-  const handleAddService = (data: Omit<Treatment, 'id'> & { imageUrl: string }) => {
+  const handleAddService = async (data: Omit<Treatment, 'id'> & { imageUrl: string }) => {
     const newService: Treatment = {
       id: `custom-${Date.now()}`,
       ...data,
       recommended: false
     };
     
-    // Add to the beginning of the list so it's visible immediately
+    // Optimistic Update
     setServices(prev => [newService, ...prev]);
     
-    // Clear upload state after adding
+    // Clear upload state
     setUploadedImage(null);
+
+    // Persist to DB
+    try {
+        await saveTreatment(newService);
+    } catch (error) {
+        console.error("Failed to save to DB:", error);
+        alert("Xatolik: Ma'lumotni saqlab bo'lmadi. Iltimos qayta urinib ko'ring.");
+    }
   };
 
-  const handleRemoveService = (id: string) => {
-    setServices(prev => prev.filter(service => service.id !== id));
+  const handleRemoveService = async (id: string) => {
+    if (window.confirm("Rostdan ham ushbu xizmatni o'chirmoqchimisiz?")) {
+        // Optimistic Update
+        setServices(prev => prev.filter(service => service.id !== id));
+        
+        // Remove from DB
+        try {
+            await deleteTreatment(id);
+        } catch (error) {
+            console.error("Failed to delete from DB:", error);
+        }
+    }
   };
 
   const removeFromCart = (cartId: string) => {
@@ -134,11 +201,20 @@ const App: React.FC = () => {
                 <p className="text-slate-500 text-sm">Barcha stomatologiya xizmatlari</p>
               </div>
             </div>
-            {/* Can add filters here later */}
+            {!isAdmin && services.length > 0 && (
+                <div className="hidden sm:block text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                    Barcha xizmatlar litsenziyalangan
+                </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {services.length === 0 ? (
+            {isLoadingServices ? (
+                 <div className="col-span-full py-20 flex flex-col items-center justify-center text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                    <p className="text-slate-500">Yuklanmoqda...</p>
+                 </div>
+            ) : services.length === 0 ? (
                 <div className="col-span-full py-20 flex flex-col items-center justify-center text-center text-slate-400 bg-white rounded-[2rem] border border-dashed border-slate-200">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
                       <Stethoscope className="h-8 w-8 text-slate-300" />

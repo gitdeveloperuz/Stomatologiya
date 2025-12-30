@@ -8,7 +8,10 @@ import * as XLSX from 'xlsx';
 // CONFIGURATION
 // ------------------------------------------------------------------
 const TELEGRAM_BOT_TOKEN: string = '8204799466:AAHvhm6ymD9NyJ77KCCdZgt9Ba2ZJBpE94I'; 
-const TELEGRAM_CHAT_ID: string = '@dfvbdfvfg'; 
+
+// REPLACE THIS WITH THE ADMIN'S TELEGRAM USER ID (e.g., '987654321')
+// NOTE: The Admin MUST start a chat with the bot (press /start) for this to work.
+const TELEGRAM_ADMIN_ID: string = '153931240'; 
 // ------------------------------------------------------------------
 
 interface CartDrawerProps {
@@ -171,12 +174,18 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
     if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN.includes('YOUR_TELEGRAM_BOT_TOKEN')) {
       return false;
     }
+    
+    // Check if Admin ID is configured
+    if (!TELEGRAM_ADMIN_ID || TELEGRAM_ADMIN_ID.includes('YOUR_ADMIN_ID')) {
+        console.warn("Telegram Admin ID is not configured. File will be downloaded locally.");
+        return false;
+    }
 
     const deliveryText = formData.deliveryMethod === 'delivery' ? "Yetkazib berish" : "O'zi olib ketish";
     const paymentText = formData.paymentMethod === 'cash' ? "Kuryerga naqd pul" : "Onlayn o'tkazma";
 
     const formDataUpload = new FormData();
-    formDataUpload.append('chat_id', TELEGRAM_CHAT_ID);
+    formDataUpload.append('chat_id', TELEGRAM_ADMIN_ID); // Sending to Admin ID
     formDataUpload.append('document', blob, fileName);
     formDataUpload.append('caption', `🦷 *Yangi Buyurtma*\n\n👤 ${formData.firstName} ${formData.lastName}\n📞 ${formData.phone}\n\n🚚 *${deliveryText}*\n💳 *${paymentText}*\n\n💰 Jami: ${CURRENCY_FORMATTER.format(total)}\n${formData.deliveryMethod === 'delivery' ? `📍 ${formData.address}` : ''}`);
     formDataUpload.append('parse_mode', 'Markdown');
@@ -188,7 +197,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
       });
       
       const result = await response.json();
-      return result.ok;
+      
+      if (!result.ok) {
+        console.error("Telegram API Error:", result);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error("Telegram Upload Failed:", error);
       return false;
@@ -204,7 +219,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, 
       const telegramSuccess = await sendToTelegram(blob, fileName);
 
       if (!telegramSuccess) {
+         // Fallback: Download locally if Telegram fails or ID is missing
          downloadLocally(blob, fileName);
+         if (!TELEGRAM_ADMIN_ID || TELEGRAM_ADMIN_ID.includes('YOUR_ADMIN_ID')) {
+            alert("Eslatma: Telegramga yuborilmadi chunki Admin ID kiritilmagan. Fayl yuklab olindi.");
+         }
       }
 
       setStep('success');
