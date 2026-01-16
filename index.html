@@ -5,9 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#0ea5e9" />
-    <title>Stomatologiya AI - Tish Davolash</title>
+    <title>StomShop</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@300;400;600&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <script>
       // Polyfill for process.env to prevent ReferenceError in browser
       if (typeof process === 'undefined') {
@@ -19,6 +20,8 @@
           extend: {
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+              mono: ['ui-monospace', 'SFMono-Regular'],
             },
             colors: {
               primary: '#0ea5e9', // Sky 500
@@ -54,7 +57,10 @@
     "firebase/app": "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js",
     "firebase/firestore": "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js",
     "firebase/analytics": "https://www.gstatic.com/firebasejs/11.0.2/firebase-analytics.js",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "otpauth": "https://esm.sh/otpauth@9.1.4",
+    "qrcode": "https://esm.sh/qrcode@1.5.3",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3"
   }
 }
 </script>
